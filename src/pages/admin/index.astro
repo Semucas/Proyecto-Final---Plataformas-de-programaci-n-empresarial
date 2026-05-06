@@ -1,0 +1,240 @@
+---
+export const prerender = true
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL
+const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="navbar navbar-dark bg-dark px-4">
+      <span class="navbar-brand fw-bold">⚙️ Panel Admin</span>
+      <div>
+        <a href="/" class="btn btn-outline-light btn-sm me-2">Ver tienda</a>
+        <button id="btnLogout" class="btn btn-danger btn-sm">Cerrar sesión</button>
+      </div>
+    </nav>
+
+    <div class="container my-4">
+      <div id="loading" class="text-center py-5">
+        <div class="spinner-border text-primary"></div>
+        <p class="mt-2">Verificando sesión...</p>
+      </div>
+
+      <div id="contenido" class="d-none">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h1>Productos</h1>
+          <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalProducto">
+            + Nuevo producto
+          </button>
+        </div>
+
+        <div id="error" class="alert alert-danger d-none"></div>
+        <div id="exito" class="alert alert-success d-none"></div>
+
+        <table class="table table-bordered table-hover">
+          <thead class="table-dark">
+            <tr>
+              <th>Imagen</th>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Precio</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tablaProductos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal crear/editar producto -->
+    <div class="modal fade" id="modalProducto" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalTitulo">Nuevo Producto</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="productoId" />
+            <div class="mb-3">
+              <label class="form-label">Nombre</label>
+              <input type="text" id="nombre" class="form-control" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Descripción</label>
+              <textarea id="descripcion" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Precio</label>
+              <input type="number" id="precio" class="form-control" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Categoría</label>
+              <input type="text" id="categoria" class="form-control" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Imagen</label>
+              <input type="file" id="imagen" class="form-control" accept="image/*" />
+              <img id="imagenPreview" src="" alt="" class="mt-2 d-none rounded" style="width:100%;max-height:200px;object-fit:cover;" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" id="btnGuardar" class="btn btn-primary">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" define:vars={{ supabaseUrl, supabaseKey }}>
+      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+      const supabase = createClient(supabaseUrl, supabaseKey)
+
+      // Verificar sesión
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        window.location.href = '/admin/login'
+      } else {
+        document.getElementById('loading').classList.add('d-none')
+        document.getElementById('contenido').classList.remove('d-none')
+        cargarProductos()
+      }
+
+      // Logout
+      document.getElementById('btnLogout').addEventListener('click', async () => {
+        await supabase.auth.signOut()
+        window.location.href = '/admin/login'
+      })
+
+      // Cargar productos
+      async function cargarProductos() {
+        const { data: productos } = await supabase.from('productos').select('*').order('created_at', { ascending: false })
+        const tbody = document.getElementById('tablaProductos')
+        tbody.innerHTML = ''
+        productos?.forEach(p => {
+          tbody.innerHTML += `
+            <tr>
+              <td><img src="${p.imagen_url || 'https://via.placeholder.com/60'}" width="60" height="60" style="object-fit:cover;" class="rounded" /></td>
+              <td>${p.nombre}</td>
+              <td>${p.categoria}</td>
+              <td>$${p.precio.toLocaleString('es-CO')}</td>
+              <td>
+                <button class="btn btn-sm btn-warning me-1" onclick="editarProducto('${p.id}','${p.nombre}','${p.descripcion}','${p.precio}','${p.categoria}','${p.imagen_url}')">Editar</button>
+                <button class="btn btn-sm btn-danger" onclick="eliminarProducto('${p.id}')">Eliminar</button>
+              </td>
+            </tr>
+          `
+        })
+      }
+
+      // Previsualizar imagen
+      document.getElementById('imagen').addEventListener('change', (e) => {
+        const file = e.target.files[0]
+        if (file) {
+          const preview = document.getElementById('imagenPreview')
+          preview.src = URL.createObjectURL(file)
+          preview.classList.remove('d-none')
+        }
+      })
+
+      // Guardar producto
+      document.getElementById('btnGuardar').addEventListener('click', async () => {
+        const id = document.getElementById('productoId').value
+        const nombre = document.getElementById('nombre').value
+        const descripcion = document.getElementById('descripcion').value
+        const precio = parseFloat(document.getElementById('precio').value)
+        const categoria = document.getElementById('categoria').value
+        const imagenFile = document.getElementById('imagen').files[0]
+
+        const errorDiv = document.getElementById('error')
+        const exitoDiv = document.getElementById('exito')
+        errorDiv.classList.add('d-none')
+        exitoDiv.classList.add('d-none')
+
+        let imagen_url = null
+
+        if (imagenFile) {
+          const ext = imagenFile.name.split('.').pop()
+          const fileName = `${Date.now()}.${ext}`
+          const { error: uploadError } = await supabase.storage
+            .from('productos')
+            .upload(fileName, imagenFile)
+
+          if (uploadError) {
+            errorDiv.textContent = 'Error al subir la imagen: ' + uploadError.message
+            errorDiv.classList.remove('d-none')
+            return
+          }
+
+          const { data: urlData } = supabase.storage.from('productos').getPublicUrl(fileName)
+          imagen_url = urlData.publicUrl
+        }
+
+        const datos = { nombre, descripcion, precio, categoria }
+        if (imagen_url) datos.imagen_url = imagen_url
+
+        let error
+        if (id) {
+          ;({ error } = await supabase.from('productos').update(datos).eq('id', id))
+        } else {
+          ;({ error } = await supabase.from('productos').insert(datos))
+        }
+
+        if (error) {
+          errorDiv.textContent = 'Error: ' + error.message
+          errorDiv.classList.remove('d-none')
+        } else {
+          bootstrap.Modal.getInstance(document.getElementById('modalProducto')).hide()
+          exitoDiv.textContent = id ? 'Producto actualizado' : 'Producto creado'
+          exitoDiv.classList.remove('d-none')
+          cargarProductos()
+          setTimeout(() => exitoDiv.classList.add('d-none'), 3000)
+        }
+      })
+
+      // Editar producto
+      window.editarProducto = (id, nombre, descripcion, precio, categoria, imagen_url) => {
+        document.getElementById('productoId').value = id
+        document.getElementById('nombre').value = nombre
+        document.getElementById('descripcion').value = descripcion
+        document.getElementById('precio').value = precio
+        document.getElementById('categoria').value = categoria
+        document.getElementById('modalTitulo').textContent = 'Editar Producto'
+        if (imagen_url && imagen_url !== 'null') {
+          const preview = document.getElementById('imagenPreview')
+          preview.src = imagen_url
+          preview.classList.remove('d-none')
+        }
+        new bootstrap.Modal(document.getElementById('modalProducto')).show()
+      }
+
+      // Eliminar producto
+      window.eliminarProducto = async (id) => {
+        if (!confirm('¿Estás seguro de eliminar este producto?')) return
+        const { error } = await supabase.from('productos').delete().eq('id', id)
+        if (!error) cargarProductos()
+      }
+
+      // Limpiar modal al cerrar
+      document.getElementById('modalProducto').addEventListener('hidden.bs.modal', () => {
+        document.getElementById('productoId').value = ''
+        document.getElementById('nombre').value = ''
+        document.getElementById('descripcion').value = ''
+        document.getElementById('precio').value = ''
+        document.getElementById('categoria').value = ''
+        document.getElementById('imagen').value = ''
+        document.getElementById('imagenPreview').classList.add('d-none')
+        document.getElementById('modalTitulo').textContent = 'Nuevo Producto'
+      })
+    </script>
+  </body>
+</html>
