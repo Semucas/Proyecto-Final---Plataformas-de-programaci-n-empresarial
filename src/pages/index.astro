@@ -84,21 +84,17 @@ const { data: categorias } = await supabase
     ))}
   </div>
 
-  <!-- Paginación -->
-  {totalPaginas > 1 && (
-    <nav class="mt-4">
-      <ul class="pagination justify-content-center">
-        {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
-          <li class={`page-item ${num === pagina ? 'active' : ''}`}>
-            
-              class="page-link"
-              href={`/?pagina=${num}${busqueda ? `&busqueda=${busqueda}` : ''}${categoria ? `&categoria=${categoria}` : ''}`}
-            >
-              {num}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  )}
+{totalPaginas > 1 && (
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center">
+      {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+        <li class={`page-item ${num === pagina ? 'active' : ''}`}>
+          <a class="page-link" href={`/?pagina=${num}${busqueda ? `&busqueda=${busqueda}` : ''}${categoria ? `&categoria=${categoria}` : ''}`}>
+            {num}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
 </Layout>
