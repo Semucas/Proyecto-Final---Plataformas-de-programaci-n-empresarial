@@ -1,17 +1,103 @@
 ---
+export const prerender = false
+import Layout from '../layouts/Layout.astro'
+import { supabase } from '../lib/supabase.js'
 
+const { searchParams } = Astro.url
+const busqueda = searchParams.get('busqueda') || ''
+const categoria = searchParams.get('categoria') || ''
+const pagina = parseInt(searchParams.get('pagina') || '1')
+const porPagina = 6
+
+let query = supabase
+  .from('productos')
+  .select('*', { count: 'exact' })
+
+if (busqueda) query = query.ilike('nombre', `%${busqueda}%`)
+if (categoria) query = query.eq('categoria', categoria)
+
+const desde = (pagina - 1) * porPagina
+query = query.range(desde, desde + porPagina - 1)
+
+const { data: productos, count } = await query
+const totalPaginas = Math.ceil((count || 0) / porPagina)
+
+const { data: categorias } = await supabase
+  .from('productos')
+  .select('categoria')
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout titulo="Catálogo de Productos">
+  <h1 class="mb-4">Catálogo de Productos</h1>
+
+  <!-- Filtros -->
+  <form method="GET" class="row g-3 mb-4">
+    <div class="col-md-6">
+      <input
+        type="text"
+        name="busqueda"
+        class="form-control"
+        placeholder="Buscar productos..."
+        value={busqueda}
+      />
+    </div>
+    <div class="col-md-4">
+      <select name="categoria" class="form-select">
+        <option value="">Todas las categorías</option>
+        {[...new Set(categorias?.map(c => c.categoria))].map(cat => (
+          <option value={cat} selected={categoria === cat}>{cat}</option>
+        ))}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100">Buscar</button>
+    </div>
+  </form>
+
+  <!-- Productos -->
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {productos?.map(producto => (
+      <div class="col">
+        <div class="card h-100 shadow-sm">
+          <img
+            src={producto.imagen_url || 'https://via.placeholder.com/400x300'}
+            class="card-img-top"
+            alt={producto.nombre}
+            style="height: 200px; object-fit: cover;"
+          />
+          <div class="card-body">
+            <span class="badge bg-secondary mb-2">{producto.categoria}</span>
+            <h5 class="card-title">{producto.nombre}</h5>
+            <p class="card-text text-muted small">{producto.descripcion}</p>
+            <p class="fw-bold text-primary fs-5">
+              ${producto.precio.toLocaleString('es-CO')}
+            </p>
+          </div>
+          <div class="card-footer">
+            <a href={`/productos/${producto.id}`} class="btn btn-outline-primary w-100">
+              Ver detalle
+            </a>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <!-- Paginación -->
+  {totalPaginas > 1 && (
+    <nav class="mt-4">
+      <ul class="pagination justify-content-center">
+        {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+          <li class={`page-item ${num === pagina ? 'active' : ''}`}>
+            
+              class="page-link"
+              href={`/?pagina=${num}${busqueda ? `&busqueda=${busqueda}` : ''}${categoria ? `&categoria=${categoria}` : ''}`}
+            >
+              {num}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )}
+</Layout>
