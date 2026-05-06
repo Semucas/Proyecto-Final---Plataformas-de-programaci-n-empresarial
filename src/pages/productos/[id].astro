@@ -1,7 +1,8 @@
 ---
 export const prerender = false
 import Layout from '../../layouts/Layout.astro'
-import { supabase } from '../../lib/supabase.js'
+import { getSupabase } from '../../lib/supabase.js'
+const supabase = getSupabase(Astro.locals.runtime?.env)
 
 const { id } = Astro.params
 
