@@ -2,8 +2,8 @@
 export const prerender = false
 import Layout from '../../layouts/Layout.astro'
 import { getSupabase } from '../../lib/supabase.js'
-const supabase = getSupabase()
 
+const supabase = getSupabase(import.meta.env)
 const { id } = Astro.params
 
 const { data: producto } = await supabase
@@ -16,7 +16,7 @@ if (!producto) return Astro.redirect('/')
 ---
 
 <Layout titulo={producto.nombre}>
-  <div class="row">
+  <div class="row mb-5">
     <div class="col-md-6">
       <img
         src={producto.imagen_url || 'https://via.placeholder.com/600x400'}
@@ -26,15 +26,112 @@ if (!producto) return Astro.redirect('/')
       />
     </div>
     <div class="col-md-6">
-      <span class="badge bg-secondary mb-2 fs-6">{producto.categoria}</span>
+      <span class={`badge mb-2 fs-6 ${producto.categoria === 'Especiales' ? 'badge-especial' : ''}`}>
+        {producto.categoria}
+      </span>
       <h1 class="mb-3">{producto.nombre}</h1>
       <p class="text-muted">{producto.descripcion}</p>
-      <h2 class="text-primary mb-4">
+      <h2 class="price mb-4">
         ${producto.precio.toLocaleString('es-CO')}
       </h2>
-      <a href="/" class="btn btn-outline-secondary">
-        ← Volver al catálogo
-      </a>
+      <button class="btn-ver mb-3" onclick="document.getElementById('formPedido').style.display='block'">
+        🛒 Comprar ahora
+      </button>
+      <a href="/" class="btn btn-outline-secondary w-100">← Volver al catálogo</a>
     </div>
   </div>
+
+  <!-- Formulario de pedido -->
+  <div id="formPedido" style="display:none;" class="card p-4 shadow-sm">
+    <h4 class="mb-4">📋 Datos del pedido</h4>
+    <div id="mensajeExito" class="alert alert-success d-none">
+      ✅ ¡Pedido enviado! Te contactaremos pronto.
+    </div>
+    <div id="mensajeError" class="alert alert-danger d-none">
+      ❌ Error al enviar. Intenta de nuevo.
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Nombre completo</label>
+        <input type="text" id="nombre" class="form-control" placeholder="Juan Pérez" />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Email</label>
+        <input type="email" id="email" class="form-control" placeholder="juan@email.com" />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Teléfono</label>
+        <input type="tel" id="telefono" class="form-control" placeholder="300 123 4567" />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Ciudad</label>
+        <input type="text" id="ciudad" class="form-control" placeholder="Medellín" />
+      </div>
+      <div class="col-12">
+        <label class="form-label fw-bold">Dirección</label>
+        <input type="text" id="direccion" class="form-control" placeholder="Calle 123 # 45-67" />
+      </div>
+      <div class="col-12">
+        <button id="btnEnviar" class="btn-ver" onclick="enviarPedido()">
+          📨 Confirmar pedido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script define:vars={{
+    productoNombre: producto.nombre,
+    productoPrecio: producto.precio,
+    emailjsPublicKey: 'M7LDzzKMREk2sClJQ',
+    emailjsServiceId: 'service_6rpinhp',
+    emailjsTemplateId: 'template_5ojiqbj'
+  }}>
+    // Cargar EmailJS
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js'
+    script.onload = () => emailjs.init(emailjsPublicKey)
+    document.head.appendChild(script)
+
+    function generarIdPedido() {
+      return 'PED-' + Date.now().toString(36).toUpperCase()
+    }
+
+    window.enviarPedido = async function() {
+      const nombre = document.getElementById('nombre').value
+      const email = document.getElementById('email').value
+      const telefono = document.getElementById('telefono').value
+      const ciudad = document.getElementById('ciudad').value
+      const direccion = document.getElementById('direccion').value
+
+      if (!nombre || !email || !telefono || !ciudad || !direccion) {
+        alert('Por favor completa todos los campos')
+        return
+      }
+
+      const btnEnviar = document.getElementById('btnEnviar')
+      btnEnviar.textContent = 'Enviando...'
+      btnEnviar.disabled = true
+
+      try {
+        await emailjs.send(emailjsServiceId, emailjsTemplateId, {
+          producto_nombre: productoNombre,
+          producto_precio: '$' + productoPrecio.toLocaleString('es-CO'),
+          pedido_id: generarIdPedido(),
+          comprador_nombre: nombre,
+          comprador_email: email,
+          comprador_telefono: telefono,
+          comprador_ciudad: ciudad,
+          comprador_direccion: direccion
+        })
+
+        document.getElementById('mensajeExito').classList.remove('d-none')
+        document.getElementById('formPedido').querySelectorAll('input').forEach(i => i.value = '')
+      } catch (e) {
+        document.getElementById('mensajeError').classList.remove('d-none')
+      } finally {
+        btnEnviar.textContent = '📨 Confirmar pedido'
+        btnEnviar.disabled = false
+      }
+    }
+  </script>
 </Layout>
