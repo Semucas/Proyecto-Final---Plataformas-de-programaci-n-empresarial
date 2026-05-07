@@ -1,43 +1,82 @@
-# Astro Starter Kit: Minimal
+# 🏆 Láminas Mundial 2026 S.A.S
 
-```sh
-npm create astro@latest -- --template minimal
-```
+E-commerce completo para la venta de láminas del álbum oficial Copa Mundial FIFA 2026, construido con arquitectura híbrida usando Astro + Cloudflare + Supabase.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## 🌐 Demo en producción
 
-## 🚀 Project Structure
+**[https://ecommerce-astro.semucas27.workers.dev](https://ecommerce-astro.semucas27.workers.dev)**
 
-Inside of your Astro project, you'll see the following folders and files:
+---
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+## 📋 Descripción del proyecto
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Este proyecto es un e-commerce funcional que aprovecha la **arquitectura híbrida de Cloudflare**, combinando renderizado estático (SSG) y dinámico (SSR) en el mismo proyecto.
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+---
 
-Any static assets, like images, can be placed in the `public/` directory.
+## 🏗️ Arquitectura híbrida
 
-## 🧞 Commands
+| Parte | Modo | Tecnología | Descripción |
+|---|---|---|---|
+| Tienda pública | **SSR** | Cloudflare Workers | Renderizado en el servidor por request |
+| Portal admin | **SSG** | Cloudflare Pages | Pre-renderizado en build time |
 
-All commands are run from the root of the project, from a terminal:
+### ¿Por qué híbrida?
+- **SSR** para el catálogo: los productos cambian constantemente, necesitan datos frescos de Supabase en cada request.
+- **SSG** para el admin: la estructura es fija, la lógica (auth, CRUD) corre desde el cliente directamente contra Supabase.
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+---
 
-## 👀 Want to learn more?
+## ✅ Funcionalidades
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+### Tienda pública (SSR)
+- 🛍️ Catálogo de láminas con imagen, nombre, categoría y precio
+- 🔍 Buscador en tiempo real (busca en toda la base de datos)
+- 🗂️ Filtrado por categoría (Colombia, Argentina, Brasil, Francia, Portugal, Especiales, Álbum)
+- 📄 Paginación del catálogo
+- 📦 Página de detalle de producto con información completa
+- 🛒 Formulario de compra con notificación por email (EmailJS)
+- ⏳ Countdown animado al Mundial 2026
+- 🎠 Carrusel animado de productos destacados
+
+### Portal Admin (SSG)
+- 🔐 Autenticación con Supabase Auth (login / logout)
+- ➕ Crear productos con imagen
+- ✏️ Editar productos existentes
+- 🗑️ Eliminar productos
+- 🖼️ Gestión de imágenes con Supabase Storage
+- 🛡️ Rutas protegidas: redirige al login si no hay sesión activa
+
+---
+
+## 🛠️ Stack tecnológico
+
+| Tecnología | Rol |
+|---|---|
+| **Astro** | Framework híbrido principal |
+| **Cloudflare Workers** | Ejecuta el SSR (tienda pública) |
+| **Supabase** | Base de datos PostgreSQL + Auth + Storage |
+| **Bootstrap 5** | Diseño responsivo |
+| **EmailJS** | Notificaciones de pedidos por correo |
+
+---
+
+## 🗄️ Base de datos
+
+### Tabla `productos`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | UUID | Identificador único |
+| `nombre` | TEXT | Nombre del producto |
+| `descripcion` | TEXT | Descripción |
+| `precio` | DECIMAL | Precio en COP |
+| `categoria` | TEXT | Categoría (selección o tipo) |
+| `imagen_url` | TEXT | URL de la imagen |
+| `created_at` | TIMESTAMP | Fecha de creación |
+
+### Seguridad (RLS)
+- Lectura pública para el catálogo
+- Escritura solo para usuarios autenticados (admin)
+- Principio de mínimo privilegio aplicado
+
+---
