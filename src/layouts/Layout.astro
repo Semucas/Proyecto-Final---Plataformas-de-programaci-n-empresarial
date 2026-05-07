@@ -199,6 +199,61 @@ const { titulo = 'Láminas Mundial 2026 S.A.S' } = Astro.props
         font-size: 1.4rem;
         color: var(--amarillo);
       }
+
+            /* COUNTDOWN */
+        .countdown-bar {
+        background: linear-gradient(135deg, var(--oscuro) 0%, #2d2d2d 100%);
+        border-bottom: 3px solid var(--rojo);
+        padding: 15px 0;
+        color: white;
+        }
+
+        .countdown-titulo {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-bottom: 10px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        }
+
+        .countdown-contenedor {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        }
+
+        .countdown-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 8px 20px;
+        min-width: 80px;
+        }
+
+        .countdown-item span {
+        font-family: 'Bebas Neue', cursive;
+        font-size: 2.5rem;
+        color: var(--amarillo);
+        line-height: 1;
+        }
+
+        .countdown-item label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        opacity: 0.7;
+        letter-spacing: 1px;
+        margin-top: 4px;
+        }
+
+        .countdown-separador {
+        font-family: 'Bebas Neue', cursive;
+        font-size: 2rem;
+        color: var(--amarillo);
+        opacity: 0.6;
+        }
     </style>
   </head>
   <body>
@@ -221,6 +276,34 @@ const { titulo = 'Láminas Mundial 2026 S.A.S' } = Astro.props
       </div>
     </div>
 
+    <!-- COUNTDOWN -->
+    <div class="countdown-bar">
+      <div class="container text-center">
+        <p class="countdown-titulo">⏳ Faltan para el Mundial 2026</p>
+        <div class="countdown-contenedor">
+          <div class="countdown-item">
+            <span id="dias">00</span>
+            <label>Días</label>
+          </div>
+          <div class="countdown-separador">:</div>
+          <div class="countdown-item">
+            <span id="horas">00</span>
+            <label>Horas</label>
+          </div>
+          <div class="countdown-separador">:</div>
+          <div class="countdown-item">
+            <span id="minutos">00</span>
+            <label>Minutos</label>
+          </div>
+          <div class="countdown-separador">:</div>
+          <div class="countdown-item">
+            <span id="segundos">00</span>
+            <label>Segundos</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <main class="container my-4">
       <slot />
     </main>
@@ -233,5 +316,30 @@ const { titulo = 'Láminas Mundial 2026 S.A.S' } = Astro.props
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+  function actualizarCountdown() {
+    const mundial = new Date('2026-06-11T00:00:00')
+    const ahora = new Date()
+    const diff = mundial - ahora
+
+    if (diff <= 0) {
+      document.querySelector('.countdown-bar').innerHTML = '<div class="container text-center py-2"><p class="mb-0 text-warning fw-bold">🏆 ¡El Mundial 2026 ya comenzó!</p></div>'
+      return
+    }
+
+    const dias = Math.floor(diff / (1000 * 60 * 60 * 24))
+    const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    const segundos = Math.floor((diff % (1000 * 60)) / 1000)
+
+    document.getElementById('dias').textContent = String(dias).padStart(2, '0')
+    document.getElementById('horas').textContent = String(horas).padStart(2, '0')
+    document.getElementById('minutos').textContent = String(minutos).padStart(2, '0')
+    document.getElementById('segundos').textContent = String(segundos).padStart(2, '0')
+  }
+
+  actualizarCountdown()
+  setInterval(actualizarCountdown, 1000)
+</script>
   </body>
 </html>

@@ -2,7 +2,8 @@
 export const prerender = false
 import Layout from '../layouts/Layout.astro'
 import { getSupabase } from '../lib/supabase.js'
-const supabase = getSupabase()
+
+const supabase = getSupabase(import.meta.env)
 
 const { searchParams } = Astro.url
 const busqueda = searchParams.get('busqueda') || ''
@@ -26,39 +27,81 @@ const totalPaginas = Math.ceil((count || 0) / porPagina)
 const { data: categorias } = await supabase
   .from('productos')
   .select('categoria')
+
+const { data: todosProductos } = await supabase
+  .from('productos')
+  .select('*')
+  .limit(10)
 ---
 
 <Layout titulo="Catálogo de Productos">
-  <h1 class="mb-4">Catálogo de Productos</h1>
 
-  <!-- Filtros -->
-  <form method="GET" class="row g-3 mb-4">
-    <div class="col-md-6">
-      <input
-        type="text"
-        name="busqueda"
-        class="form-control"
-        placeholder="Buscar productos..."
-        value={busqueda}
-      />
-    </div>
-    <div class="col-md-4">
-      <select name="categoria" class="form-select">
-        <option value="">Todas las categorías</option>
-        {[...new Set(categorias?.map(c => c.categoria))].map(cat => (
-          <option value={cat} selected={categoria === cat}>{cat}</option>
+  <!-- CARRUSEL -->
+  <div class="carrusel-wrapper mb-5">
+    <h2 class="section-titulo">🌟 Productos Destacados</h2>
+    <div class="carrusel-track-container">
+      <div class="carrusel-track" id="carruselTrack">
+        {todosProductos?.map(producto => (
+          <a href={`/productos/${producto.id}`} class="carrusel-card">
+            <img
+              src={producto.imagen_url || 'https://via.placeholder.com/200x200'}
+              alt={producto.nombre}
+            />
+            <div class="carrusel-info">
+              <p class="carrusel-nombre">{producto.nombre}</p>
+              <p class="carrusel-precio">${producto.precio.toLocaleString('es-CO')}</p>
+            </div>
+          </a>
         ))}
-      </select>
+        {todosProductos?.map(producto => (
+          <a href={`/productos/${producto.id}`} class="carrusel-card">
+            <img
+              src={producto.imagen_url || 'https://via.placeholder.com/200x200'}
+              alt={producto.nombre}
+            />
+            <div class="carrusel-info">
+              <p class="carrusel-nombre">{producto.nombre}</p>
+              <p class="carrusel-precio">${producto.precio.toLocaleString('es-CO')}</p>
+            </div>
+          </a>
+        ))}
+      </div>
     </div>
-    <div class="col-md-2">
-      <button type="submit" class="btn btn-primary w-100">Buscar</button>
-    </div>
-  </form>
+  </div>
 
-  <!-- Productos -->
-  <div class="row row-cols-1 row-cols-md-3 g-4">
+  <!-- CATALOGO -->
+  <h2 class="section-titulo">🏪 Catálogo Completo</h2>
+
+  <!-- Buscador en tiempo real -->
+  <div class="filtros-section mb-4">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <input
+          type="text"
+          id="buscadorTiempoReal"
+          class="form-control"
+          placeholder="🔍 Buscar productos en tiempo real..."
+          value={busqueda}
+        />
+      </div>
+      <div class="col-md-4">
+        <select id="filtroCategoria" class="form-select">
+          <option value="">Todas las categorías</option>
+          {[...new Set(categorias?.map(c => c.categoria))].map(cat => (
+            <option value={cat} selected={categoria === cat}>{cat}</option>
+          ))}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button onclick="limpiarFiltros()" class="btn-buscar">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid de productos -->
+  <div class="row row-cols-1 row-cols-md-3 g-4" id="gridProductos">
     {productos?.map(producto => (
-      <div class="col">
+      <div class="col producto-card" data-nombre={producto.nombre.toLowerCase()} data-categoria={producto.categoria}>
         <div class="card h-100 shadow-sm">
           <img
             src={producto.imagen_url || 'https://via.placeholder.com/400x300'}
@@ -67,15 +110,17 @@ const { data: categorias } = await supabase
             style="height: 200px; object-fit: cover;"
           />
           <div class="card-body">
-            <span class="badge bg-secondary mb-2">{producto.categoria}</span>
+            <span class={`badge mb-2 ${producto.categoria === 'Especiales' ? 'badge-especial' : ''}`}>
+              {producto.categoria}
+            </span>
             <h5 class="card-title">{producto.nombre}</h5>
             <p class="card-text text-muted small">{producto.descripcion}</p>
-            <p class="fw-bold text-primary fs-5">
+            <p class="price">
               ${producto.precio.toLocaleString('es-CO')}
             </p>
           </div>
-          <div class="card-footer">
-            <a href={`/productos/${producto.id}`} class="btn btn-outline-primary w-100">
+          <div class="card-footer bg-white border-0 pb-3">
+            <a href={`/productos/${producto.id}`} class="btn-ver">
               Ver detalle
             </a>
           </div>
@@ -84,17 +129,168 @@ const { data: categorias } = await supabase
     ))}
   </div>
 
-{totalPaginas > 1 && (
-  <nav class="mt-4">
-    <ul class="pagination justify-content-center">
-      {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
-        <li class={`page-item ${num === pagina ? 'active' : ''}`}>
-          <a class="page-link" href={`/?pagina=${num}${busqueda ? `&busqueda=${busqueda}` : ''}${categoria ? `&categoria=${categoria}` : ''}`}>
-            {num}
-          </a>
-        </li>
-      ))}
-    </ul>
-  </nav>
-)}
+  <div id="sinResultados" class="text-center py-5 d-none">
+    <p class="fs-4">😕 No se encontraron productos</p>
+  </div>
+
+  <!-- Paginación -->
+  {totalPaginas > 1 && (
+    <nav class="mt-4">
+      <ul class="pagination justify-content-center">
+        {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+          <li class={`page-item ${num === pagina ? 'active' : ''}`}>
+            <a class="page-link" href={`/?pagina=${num}${busqueda ? `&busqueda=${busqueda}` : ''}${categoria ? `&categoria=${categoria}` : ''}`}>
+              {num}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )}
 </Layout>
+
+<style>
+  .section-titulo {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.8rem;
+    color: var(--verde);
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+    border-left: 5px solid var(--amarillo);
+    padding-left: 15px;
+  }
+
+  /* CARRUSEL */
+  .carrusel-wrapper {
+    overflow: hidden;
+  }
+
+  .carrusel-track-container {
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  .carrusel-track {
+    display: flex;
+    gap: 20px;
+    animation: scrollCarrusel 30s linear infinite;
+    width: max-content;
+  }
+
+  .carrusel-track:hover {
+    animation-play-state: paused;
+  }
+
+  @keyframes scrollCarrusel {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .carrusel-card {
+    width: 200px;
+    border-radius: 12px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: white;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .carrusel-card:hover {
+    transform: scale(1.05);
+  }
+
+  .carrusel-card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-bottom: 3px solid var(--amarillo);
+  }
+
+  .carrusel-info {
+    padding: 10px;
+    text-align: center;
+  }
+
+  .carrusel-nombre {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .carrusel-precio {
+    color: var(--verde);
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+</style>
+
+<script type="module" define:vars={{ supabaseUrl: import.meta.env.PUBLIC_SUPABASE_URL, supabaseKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY }}>
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+  const supabase = createClient(supabaseUrl, supabaseKey)
+
+  const buscador = document.getElementById('buscadorTiempoReal')
+  const filtroCategoria = document.getElementById('filtroCategoria')
+  const grid = document.getElementById('gridProductos')
+  const sinResultados = document.getElementById('sinResultados')
+
+  let timeout = null
+
+  function renderProductos(productos) {
+    if (!productos || productos.length === 0) {
+      grid.innerHTML = ''
+      sinResultados.classList.remove('d-none')
+      return
+    }
+    sinResultados.classList.add('d-none')
+    grid.innerHTML = productos.map(p => `
+      <div class="col">
+        <div class="card h-100 shadow-sm">
+          <img src="${p.imagen_url || 'https://via.placeholder.com/400x300'}"
+            class="card-img-top" alt="${p.nombre}"
+            style="height: 200px; object-fit: cover;" />
+          <div class="card-body">
+            <span class="badge mb-2 ${p.categoria === 'Especiales' ? 'badge-especial' : ''}">${p.categoria}</span>
+            <h5 class="card-title">${p.nombre}</h5>
+            <p class="card-text text-muted small">${p.descripcion || ''}</p>
+            <p class="price">$${p.precio.toLocaleString('es-CO')}</p>
+          </div>
+          <div class="card-footer bg-white border-0 pb-3">
+            <a href="/productos/${p.id}" class="btn-ver">Ver detalle</a>
+          </div>
+        </div>
+      </div>
+    `).join('')
+  }
+
+  async function buscar() {
+    const texto = buscador.value.trim()
+    const cat = filtroCategoria.value
+
+    let query = supabase.from('productos').select('*')
+    if (texto) query = query.ilike('nombre', `%${texto}%`)
+    if (cat) query = query.eq('categoria', cat)
+
+    const { data } = await query
+    renderProductos(data)
+  }
+
+  buscador.addEventListener('input', () => {
+    clearTimeout(timeout)
+    timeout = setTimeout(buscar, 300)
+  })
+
+  filtroCategoria.addEventListener('change', buscar)
+
+  window.limpiarFiltros = function() {
+    buscador.value = ''
+    filtroCategoria.value = ''
+    buscar()
+  }
+</script>
